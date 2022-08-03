@@ -365,6 +365,8 @@ bot.action(/.+/, async ctx => {
                     }, {
                         isNotifications: false,
                     })
+
+                    console.log('1')
                     
                     await User.updateOne({
                         id: callbackInfo.from.id
@@ -554,32 +556,39 @@ bot.on('message', async ctx => {
                     id: messageInfo.from.id
                 })
 
-                if (!user.isNotifications) {
+                console.log(user.isNotifications)
+
+                if (user.isNotifications === undefined) {
                     await User.updateOne({
                         id: messageInfo.from.id
                     }, {
                         isNotifications: true,
                     })
 
-                    if (user?.notifications === undefined) {
-                        const notificationsButtons = [
-                            [
-                                Markup.button.callback('Да', 'want'), Markup.button.callback('Нет', 'notWant'),
-                            ]
+                    const notificationsButtons = [
+                        [
+                            Markup.button.callback('Да', 'want'), Markup.button.callback('Нет', 'notWant'),
                         ]
-        
+                    ]
 
-                        const notifications = await ctx.telegram.sendMessage(messageInfo.from.id, 'Ты хочешь получать оповещения, когда будут созданы новые вопросы?', {
-                            reply_markup: { inline_keyboard: notificationsButtons }
-                        })
+                    const notifications = await ctx.telegram.sendMessage(messageInfo.from.id, 'Ты хочешь получать оповещения, когда будут созданы новые вопросы?', {
+                        reply_markup: { inline_keyboard: notificationsButtons }
+                    })
 
-        
-                        ctx.session.notId = notifications.message_id
-                    } else {
-                        questions(ctx)
-                    }
-                } else {
+    
+                    ctx.session.notId = notifications.message_id
+
+                    return
+                }
+
+                if (user.isNotifications) {
                     ctx.telegram.sendMessage(messageInfo.from.id, 'Нужно ответить на вопрос об уведомлениях, чтобы получить доступ к вопросам.')
+
+                    return
+                }
+
+                if (!user.isNotifications) {
+                    questions(ctx)
                 }
                 
                 return
