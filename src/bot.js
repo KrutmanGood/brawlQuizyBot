@@ -72,7 +72,7 @@ bot.action(/.+/, async ctx => {
     const callbackInfo = ctx.update.callback_query
     ctx.session = ctx.session || {}
 
-    if (ctx.session.buttonId === callbackInfo.data && ctx.session.buttonId !== 'answerAgain' && ctx.session.buttonId !== 'withdraw' && ctx.session.buttonId !== 'correctResultButton' && ctx.session.buttonId !== 'notCorrectResultButton') {
+    if (ctx.session.buttonId === callbackInfo.data && ctx.session.buttonId !== 'answerAgain' && ctx.session.buttonId !== 'withdraw' && ctx.session.buttonId !== 'correctResultButton' && ctx.session.buttonId !== 'notCorrectResultButton' && ctx.session.buttonId !== 'delete' && ctx.session.buttonId !== 'deleteLast') {
         console.log('2 клика')
 
         ctx.session.buttonId = ''
@@ -236,6 +236,7 @@ bot.action(/.+/, async ctx => {
                     })
 
                     if (questions[0]) {
+                        const questionId = questions.length - 1
                         const question = questions[questionId]
 
                         await Question.updateOne({
@@ -357,10 +358,10 @@ bot.action(/.+/, async ctx => {
 
             try {
                 if (callbackInfo.data === 'want') {
-                    await ctx.telegram.deleteMessage(callbackInfo.from.id, callbackInfo.message_id)
+                    await ctx.telegram.deleteMessage(callbackInfo.from.id, ctx.session.notId)
     
                     await User.updateOne({
-                        id: messageInfo.from.id
+                        id: callbackInfo.from.id
                     }, {
                         isNotifications: false,
                     })
@@ -380,10 +381,10 @@ bot.action(/.+/, async ctx => {
 
             try {
                 if (callbackInfo.data === 'notWant') {
-                    await ctx.telegram.deleteMessage(callbackInfo.from.id, callbackInfo.message_id)
+                    await ctx.telegram.deleteMessage(callbackInfo.from.id, ctx.session.notId)
     
                     await User.updateOne({
-                        id: messageInfo.from.id
+                        id: callbackInfo.from.id
                     }, {
                         isNotifications: false,
                     })
