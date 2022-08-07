@@ -20,17 +20,15 @@ bot.start(async ctx => {
         })
 
         if (isStarted) {
-            const answerInfo = await ctx.telegram.sendMessage(messageInfo.from.id, `Перед использованием бота, тебе необходимо подписаться на канал @in_brawl.\n\nКак только подпишешься, нажми на кнопку ниже, чтобы мы могли убедиться в достоверности подписки.`, {
+            await ctx.telegram.sendMessage(messageInfo.from.id, `Перед использованием бота, тебе необходимо подписаться на канал @in_brawl.\n\nКак только подпишешься, нажми на кнопку ниже, чтобы мы могли убедиться в достоверности подписки.`, {
                 reply_markup: { inline_keyboard: buttons.notNewUser },
             })
 
-            ctx.session.checkingMessageId = answerInfo.message_id
+            return
         } else {
-            const answerInfo = await ctx.telegram.sendMessage(messageInfo.from.id, `Перед использованием бота, тебе необходимо подписаться на канал @in_brawl.\n\nКак только подпишешься, нажми на кнопку ниже, чтобы мы могли убедиться в достоверности подписки.`, {
+            await ctx.telegram.sendMessage(messageInfo.from.id, `Перед использованием бота, тебе необходимо подписаться на канал @in_brawl.\n\nКак только подпишешься, нажми на кнопку ниже, чтобы мы могли убедиться в достоверности подписки.`, {
                 reply_markup: { inline_keyboard: buttons.newUser },
             })
-
-            ctx.session.checkingMessageId = answerInfo.message_id
 
             const correctCount = await Count.findOne({
                 isCorrect: true,
@@ -43,6 +41,8 @@ bot.start(async ctx => {
             }, {
                 count: newCount
             })
+
+            return
         }
     } catch(e) {
         error(e, '/satrt', messageInfo.from.id)
@@ -72,10 +72,12 @@ bot.action(/.+/, async ctx => {
     const callbackInfo = ctx.update.callback_query
     ctx.session = ctx.session || {}
 
-    if (ctx.session.buttonId === callbackInfo.data && ctx.session.buttonId !== 'answerAgain' && ctx.session.buttonId !== 'withdraw' && ctx.session.buttonId !== 'correctResultButton' && ctx.session.buttonId !== 'notCorrectResultButton' && ctx.session.buttonId !== 'delete' && ctx.session.buttonId !== 'deleteLast') {
-        console.log('2 клика')
+    const clicksButtons = ['firstOption', 'secondOption', 'secondOption', 'notNewUser', 'notDelete', 'sendFirstQuestionBtn', 'correctResultButton', 'notCorrectResultButton', 'want', 'notWant']
 
-        ctx.session.buttonId = ''
+    if (ctx.session.buttonId === callbackInfo.data && clicksButtons.includes(ctx.session.buttonId)) {
+        ctx.answerCbQuery('Не стоит кликать на кнопку так часто!', { show_alert: true })
+
+        return
     } else {
         ctx.session.buttonId = callbackInfo.data
 
@@ -117,7 +119,7 @@ bot.action(/.+/, async ctx => {
                     const follow = await ctx.telegram.getChatMember(config.sponsor, callbackInfo.from.id)
     
                     if (follow.status === 'member') {
-                        ctx.telegram.deleteMessage(callbackInfo.from.id, ctx.session.checkingMessageId)
+                        ctx.telegram.deleteMessage(callbackInfo.from.id, callbackInfo.message.message_id)
     
                         await ctx.telegram.sendMessage(callbackInfo.from.id, '👋')
                         await ctx.telegram.sendMessage(callbackInfo.from.id, `*Привет, Боец!*\n\nТут ты сможешь заработать гемы, отвечая на несложные вопросы по игре Brawl Stars.\n\nИтак, для начала давай введем тебя в курс дела:\n\nДля этого ответь на вопрос, нажав на кнопку ниже.`, {
@@ -181,9 +183,9 @@ bot.action(/.+/, async ctx => {
             try {
                 if (callbackInfo.data === 'notNewUser') {
                     const follow = await ctx.telegram.getChatMember(config.sponsor, callbackInfo.from.id)
-    
+
                     if (follow.status === 'member') {
-                        ctx.telegram.deleteMessage(callbackInfo.from.id, ctx.session.checkingMessageId)
+                        ctx.telegram.deleteMessage(callbackInfo.from.id, callbackInfo.message.message_id)
     
                         await ctx.telegram.sendMessage(callbackInfo.from.id, `Меню кнопок:`, {
                             parse_mode: 'Markdown',
@@ -215,7 +217,7 @@ bot.action(/.+/, async ctx => {
                         })
                     })
     
-                    await ctx.telegram.deleteMessage(callbackInfo.from.id, ctx.session.confirmMessageId)
+                    await ctx.telegram.deleteMessage(callbackInfo.from.id, callbackInfo.message.message_id)
                     await ctx.answerCbQuery('Все вопросы успешно удалены!', { show_alert: true })
                     await ctx.telegram.sendMessage(callbackInfo.from.id, 'Выберите необходимую команду из списка ниже:', {
                         reply_markup: { keyboard: buttons.adminFunctions, resize_keyboard: true }
@@ -245,13 +247,13 @@ bot.action(/.+/, async ctx => {
                             isArchive: true,
                         })
     
-                        await ctx.telegram.deleteMessage(callbackInfo.from.id, ctx.session.confirmMessageId)
+                        await ctx.telegram.deleteMessage(callbackInfo.from.id, callbackInfo.message.message_id)
                         await ctx.answerCbQuery('Вопрос был успешно удален!', { show_alert: true })
                         await ctx.telegram.sendMessage(callbackInfo.from.id, 'Выберите необходимую команду из списка ниже:', {
                             reply_markup: { keyboard: buttons.adminFunctions, resize_keyboard: true }
                         })
                     } else {
-                        await ctx.telegram.deleteMessage(callbackInfo.from.id, ctx.session.confirmMessageId)
+                        await ctx.telegram.deleteMessage(callbackInfo.from.id, callbackInfo.message.message_id)
                         await ctx.answerCbQuery('Последнего вопроса не найдено', { show_alert: true })
                     }
                 
@@ -266,7 +268,7 @@ bot.action(/.+/, async ctx => {
                     await ctx.telegram.sendMessage(callbackInfo.from.id, 'Действие отменено', {
                         reply_markup: { keyboard: buttons.adminFunctions, resize_keyboard: true }
                     })
-                    await ctx.telegram.deleteMessage(callbackInfo.from.id, ctx.session.confirmMessageId)
+                    await ctx.telegram.deleteMessage(callbackInfo.from.id, callbackInfo.message.message_id)
     
                     return
                 }
@@ -326,8 +328,6 @@ bot.action(/.+/, async ctx => {
 
                     ctx.answerCbQuery('Подсказка: оба варианта верны 1', { show_alert: true })
 
-                    ctx.session.firstQuestionId = firstQuestionInfo.message_id
-
                     await ctx.telegram.editMessageReplyMarkup(callbackInfo.from.id, firstQuestionInfo.message_id, firstQuestionInfo.message_id, { inline_keyboard: buttons.answerOptions })
 
                     return
@@ -358,7 +358,7 @@ bot.action(/.+/, async ctx => {
 
             try {
                 if (callbackInfo.data === 'want') {
-                    await ctx.telegram.deleteMessage(callbackInfo.from.id, ctx.session.notId)
+                    await ctx.telegram.deleteMessage(callbackInfo.from.id, callbackInfo.message.message_id)
     
                     await User.updateOne({
                         id: callbackInfo.from.id
@@ -383,7 +383,7 @@ bot.action(/.+/, async ctx => {
 
             try {
                 if (callbackInfo.data === 'notWant') {
-                    await ctx.telegram.deleteMessage(callbackInfo.from.id, ctx.session.notId)
+                    await ctx.telegram.deleteMessage(callbackInfo.from.id, callbackInfo.message.message_id)
     
                     await User.updateOne({
                         id: callbackInfo.from.id
@@ -435,68 +435,76 @@ bot.action(/.+/, async ctx => {
                     })
         
                     const answerType = buttonElements[1]
-        
-                    if (question) {
-                        if (answerType === '+') {
-                            const correctResultButton = [
-                                [
-                                    Markup.button.callback('⏳ Результат', 'correctResultButton'),
-                                ],
-                            ]
-        
-                            const newBalance = +user.balance.toFixed(1) + +question.price
-                            const newAnsweredQuestionsCount = user.answeredQuestionsCount + 1
-                            const newArrayWithAnsweredQuestions = user.answeredQuestions
-                            newArrayWithAnsweredQuestions.push(buttonElements[0])
-        
-                            await ctx.telegram.editMessageReplyMarkup(callbackInfo.from.id, callbackInfo.message.message_id, callbackInfo.message.message_id, { inline_keyboard: correctResultButton })
-        
-                            ctx.answerCbQuery(`Вы ответили правильно!\nНа ваш баланс зачислено +${question.price} гемов.\n\nВаш баланс: ${newBalance.toFixed(1)} гемов.`, { show_alert: true })
-        
-                            await User.updateOne({
-                                id: callbackInfo.from.id,
-                            }, {
-                                balance: newBalance
-                            })
-                            await User.updateOne({
-                                id: callbackInfo.from.id,
-                            }, {
-                                answeredQuestionsCount: newAnsweredQuestionsCount
-                            })
-                            await User.updateOne({
-                                id: callbackInfo.from.id,
-                            }, {
-                                answeredQuestions: newArrayWithAnsweredQuestions,
-                            })
-                        }
-        
-                        if (answerType === '-') {
-                            const notCorrectResultButton = [
-                                [
-                                    Markup.button.callback('⏳ Результат', 'notCorrectResultButton'),
-                                ],
-                            ]
-        
-                            const newAnsweredQuestionsCount = user.answeredQuestionsCount + 1
-                            const newArrayWithAnsweredQuestions = user.answeredQuestions
-                            newArrayWithAnsweredQuestions.push(buttonElements[0])
-        
-                            await ctx.telegram.editMessageReplyMarkup(callbackInfo.from.id, callbackInfo.message.message_id, callbackInfo.message.message_id, { inline_keyboard: notCorrectResultButton })
-                                
-                            ctx.answerCbQuery(`Ответ не верный!\n\nВаш баланс: ${user.balance.toFixed(1)} гемов.`, { show_alert: true })
-        
-                            await User.updateOne({
-                                id: callbackInfo.from.id,
-                            }, {
-                                answeredQuestionsCount: newAnsweredQuestionsCount,
-                            })
-                            await User.updateOne({
-                                id: callbackInfo.from.id,
-                            }, {
-                                answeredQuestions: newArrayWithAnsweredQuestions,
-                            })
+
+                    if (user.answeredQuestions.includes(question.questionId)) {
+                        ctx.answerCbQuery('Вы уже отвечали на этот вопрос!', { show_alert: true })
+                    } else {
+                        if (question) {
+                            if (answerType === '+') {
+                                const correctResultButton = [
+                                    [
+                                        Markup.button.callback('⏳ Результат', 'correctResultButton'),
+                                    ],
+                                ]
+            
+                                const newBalance = +user.balance.toFixed(1) + +question.price
+                                const newAnsweredQuestionsCount = user.answeredQuestionsCount + 1
+                                const newArrayWithAnsweredQuestions = user.answeredQuestions
+                                newArrayWithAnsweredQuestions.push(buttonElements[0])
+            
+                                await ctx.telegram.editMessageReplyMarkup(callbackInfo.from.id, callbackInfo.message.message_id, callbackInfo.message.message_id, { inline_keyboard: correctResultButton })
+            
+                                ctx.answerCbQuery(`Вы ответили правильно!\nНа ваш баланс зачислено +${question.price} гемов.\n\nВаш баланс: ${newBalance.toFixed(1)} гемов.`, { show_alert: true })
+            
+                                await User.updateOne({
+                                    id: callbackInfo.from.id,
+                                }, {
+                                    balance: newBalance
+                                })
+                                await User.updateOne({
+                                    id: callbackInfo.from.id,
+                                }, {
+                                    answeredQuestionsCount: newAnsweredQuestionsCount
+                                })
+                                await User.updateOne({
+                                    id: callbackInfo.from.id,
+                                }, {
+                                    answeredQuestions: newArrayWithAnsweredQuestions,
+                                })
+                            }
+            
+                            if (answerType === '-') {
+                                const notCorrectResultButton = [
+                                    [
+                                        Markup.button.callback('⏳ Результат', 'notCorrectResultButton'),
+                                    ],
+                                ]
+            
+                                const newAnsweredQuestionsCount = user.answeredQuestionsCount + 1
+                                const newArrayWithAnsweredQuestions = user.answeredQuestions
+                                newArrayWithAnsweredQuestions.push(buttonElements[0])
+    
+                                console.log(ctx.session.mesId)
+            
+                                await ctx.telegram.editMessageReplyMarkup(callbackInfo.from.id, callbackInfo.message.message_id, callbackInfo.message.message_id, { inline_keyboard: notCorrectResultButton })
+                                    
+                                ctx.answerCbQuery(`Ответ не верный!\n\nВаш баланс: ${user.balance.toFixed(1)} гемов.`, { show_alert: true })
+            
+                                await User.updateOne({
+                                    id: callbackInfo.from.id,
+                                }, {
+                                    answeredQuestionsCount: newAnsweredQuestionsCount,
+                                })
+                                await User.updateOne({
+                                    id: callbackInfo.from.id,
+                                }, {
+                                    answeredQuestions: newArrayWithAnsweredQuestions,
+                                })
+                            }
                         }
                     }
+
+                    return
                 } catch(e) {
                     error(e, 'Ответ на вопрос (кнопки с вариантами ответа)', callbackInfo.from.id)
                 }
@@ -556,8 +564,6 @@ bot.on('message', async ctx => {
                     id: messageInfo.from.id
                 })
 
-                console.log(user.isNotifications)
-
                 if (user.isNotifications === undefined) {
                     await User.updateOne({
                         id: messageInfo.from.id
@@ -571,12 +577,9 @@ bot.on('message', async ctx => {
                         ]
                     ]
 
-                    const notifications = await ctx.telegram.sendMessage(messageInfo.from.id, 'Ты хочешь получать оповещения, когда будут созданы новые вопросы?', {
+                    await ctx.telegram.sendMessage(messageInfo.from.id, 'Ты хочешь получать оповещения, когда будут созданы новые вопросы?', {
                         reply_markup: { inline_keyboard: notificationsButtons }
                     })
-
-    
-                    ctx.session.notId = notifications.message_id
 
                     return
                 }
@@ -588,7 +591,7 @@ bot.on('message', async ctx => {
                 }
 
                 if (!user.isNotifications) {
-                    questions(ctx)
+                    questions(ctx, user)
                 }
                 
                 return
@@ -697,11 +700,10 @@ bot.on('message', async ctx => {
                     ]
                 ]
     
-                const confirmMessage = await ctx.telegram.sendMessage(messageInfo.from.id, 'Вы точно хотите удалить все вопросы?', {
+                await ctx.telegram.sendMessage(messageInfo.from.id, 'Вы точно хотите удалить все вопросы?', {
                     reply_markup: { inline_keyboard: deleteOrNot }
                 })
     
-                ctx.session.confirmMessageId = confirmMessage.message_id
 
                 return
             }
@@ -717,11 +719,9 @@ bot.on('message', async ctx => {
                     ]
                 ]
     
-                const confirmMessage = await ctx.telegram.sendMessage(messageInfo.from.id, 'Вы точно хотите удалить последний вопрос?', {
+                await ctx.telegram.sendMessage(messageInfo.from.id, 'Вы точно хотите удалить последний вопрос?', {
                     reply_markup: { inline_keyboard: deleteOrNot }
                 })
-    
-                ctx.session.confirmMessageId = confirmMessage.message_id
 
                 return
             }
@@ -823,9 +823,9 @@ bot.on('message', async ctx => {
                         notifications: true,
                     })
     
-                    users.forEach(el => {
-                        ctx.telegram.sendMessage(el.id, 'Только что был создан новый вопрос, бегом отвечать!')
-                    })
+                    // users.forEach(el => {
+                    //     ctx.telegram.sendMessage(el.id, 'Только что был создан новый вопрос, бегом отвечать!')
+                    // })
     
                     await ctx.telegram.sendMessage(messageInfo.from.id, 'Готово!', {
                         reply_markup: { keyboard: buttons.menuButtons, resize_keyboard: true }
@@ -858,7 +858,7 @@ async function answerToFirstQuestion(ctx) {
         answeredQuestionsCount: 1,
     })
 
-    ctx.telegram.deleteMessage(callbackInfo.from.id, ctx.session.firstQuestionId)
+    ctx.telegram.deleteMessage(callbackInfo.from.id, callbackInfo.from.id)
     ctx.answerCbQuery(`Ух ты!\nТы ответил правильно и заработал свои первые 0.1 гемов!\n\nТеперь изучи подробнее функционал бота, нажав на кнопку «✨ Помощь» в меню ниже.`, { show_alert: true })
     ctx.telegram.sendMessage(callbackInfo.from.id, 'Меню кнопок:', {
         reply_markup: { keyboard: buttons.menuButtons, resize_keyboard: true }
@@ -867,29 +867,10 @@ async function answerToFirstQuestion(ctx) {
     return
 }
 
-async function questions(ctx) {
+async function questions(ctx, user) {
     const questions = await Question.find({
         isArchive: false,
     })
-    let user
-
-    let id
-
-    if (ctx.update.callback_query !== undefined) {
-        id = ctx.update.callback_query.from.id
-
-        user = await User.findOne({
-            id: id,
-        })
-    } else {
-        id = ctx.update.message.from.id
-
-        user = await User.findOne({
-            id: id,
-        })
-    }
-
-    let canAnswer = false
 
     const notAnsweredQuestions = []
 
@@ -901,28 +882,24 @@ async function questions(ctx) {
         }
     })
 
-    notAnsweredQuestions.forEach(async (question, questionIndex) => {
-        canAnswer = true
+    if (!notAnsweredQuestions.length) {
+        await ctx.telegram.sendMessage(user.id, 'На данный момент нет доступных вопросов.', {
+            reply_markup: { keyboard: buttons.menuButtons, resize_keyboard: true }
+        })
 
-        const questionPhoto = await ctx.telegram.sendPhoto(id, question.file_id, {
+        return
+    }
+
+    notAnsweredQuestions.forEach(async (question) => {
+        const questionPhoto = await ctx.telegram.sendPhoto(user.id, question.file_id, {
             caption: `*${question.question}*\n\nСтатус: #открыт\nНаграда: *${question.price} гемов*`,
             parse_mode: 'Markdown',
         })
 
         const options = question.options
 
-        await ctx.telegram.editMessageReplyMarkup(id, questionPhoto.message_id, questionPhoto.message_id, { inline_keyboard: options })
-
-        if (notAnsweredQuestions.length-1 === questionIndex && !canAnswer) {
-            await ctx.telegram.sendMessage(id, 'На данный момент нет доступных вопросов.', {
-                reply_markup: { keyboard: buttons.menuButtons, resize_keyboard: true }
-            })
-        }
+        await ctx.telegram.editMessageReplyMarkup(user.id, questionPhoto.message_id, questionPhoto.message_id, { inline_keyboard: options })
     })
 
-    if (notAnsweredQuestions[0] === undefined) {
-        await ctx.telegram.sendMessage(id, 'На данный момент нет доступных вопросов.', {
-            reply_markup: { keyboard: buttons.menuButtons, resize_keyboard: true }
-        })
-    }
+    return
 }
